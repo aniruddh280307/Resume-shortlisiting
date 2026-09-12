@@ -154,15 +154,42 @@ export function simulateHiringWeights(
 }
 
 export async function chatWithRecruiter(
-  question: string,
-  candidateList: Candidate[] = defaultCandidates
+  prompt: string,
+  candidates: Candidate[] = defaultCandidates
 ): Promise<ChatMessage> {
-  await wait(500);
-
-  const lower = question.toLowerCase();
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const candidateList = candidates.length > 0 ? candidates : defaultCandidates;
 
-  // 1. Angular query
+  // Try Python AI Chatbot endpoint first
+  try {
+    const res = await fetch('http://127.0.0.1:8001/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        candidates: candidateList.slice(0, 10),
+        job: { title: 'Senior Full Stack Engineer' }
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.response) {
+        return {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          timestamp: time,
+          content: data.response
+        };
+      }
+    }
+  } catch (e) {
+    // Graceful fallback to client engine
+  }
+
+  await wait(450);
+  const lower = prompt.toLowerCase();
+
+  // 1. Angular matching query
   if (lower.includes('angular')) {
     const angularMatches = candidateList.filter((c) => c.matchedSkills.includes('Angular'));
     return {
