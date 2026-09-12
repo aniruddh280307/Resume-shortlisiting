@@ -1,100 +1,140 @@
-# Nexora
+# Nexora — Smart Shortlisting Engine
 
-Candidate intelligence for better hiring.
+Rank a batch of resumes against a Job Description using genuine hybrid **semantic + keyword matching**, with explainable, score-backed reasoning for the top candidates. Built for the [hackathon name] Resume Shortlisting challenge.
 
-## Project structure
+## What it does
 
-```text
-frontend/
-      src/           Darshan's Vite/React hiring intelligence frontend
-      package.json   Frontend dependencies and scripts
-      vite.config.ts Vite configuration
-      tsconfig.json  Frontend TypeScript configuration
-      index.html     Vite entry document
+Upload a Job Description and a batch of resumes (PDF or DOCX). Nexora extracts, cleans, and analyzes every resume, then returns a ranked, explainable shortlist — no manual metadata entry required, no black-box LLM scoring.
 
-mywork/          Sanjay's Nexa, evidence, and CodeAssess foundation
-fraud_detection/ Resume fraud detection service
-stt_service/     Speech-to-text WebSocket service
+## Architecture
+
+```
+JD + Resumes (PDF/DOCX)
+        │
+        ▼
+Extraction        → pdfplumber / easyOCR / python-docx
+        │
+        ▼
+Normalization     → symspellpy (typos) / dateutil (dates) / rapidfuzz (headers)
+        │
+        ▼
+Skill Extraction  → pulls required skills from the JD
+        │
+   ┌────┴────┐
+   ▼         ▼
+Keyword    Semantic
+Matching   Matching
+(BM25 +    (Qwen3-Embedding-4B
+rapidfuzz)  cosine similarity)
+   └────┬────┘
+        ▼
+Fusion → Explainable Ranker
+        │
+        ▼
+Recruiter Dashboard (React frontend)
 ```
 
-## Run locally
+## Tech Stack
+
+**Backend (Python)**
+| Tool | Role |
+|---|---|
+| pdfplumber | Text-based PDF extraction |
+| easyOCR | OCR fallback for scanned resumes |
+| python-docx | Word document extraction |
+| symspellpy | OCR typo correction |
+| python-dateutil | Fuzzy date normalization |
+| rapidfuzz | Fuzzy header & skill matching |
+| rank_bm25 | Keyword/lexical scoring |
+| sentence-transformers + Qwen3-Embedding-4B | Semantic similarity |
+| FastAPI + Uvicorn | API server |
+
+**Frontend**
+| Tool | Role |
+|---|---|
+| React 18/19 + TypeScript | UI |
+| Vite | Dev server / bundler |
+| Recharts | Skill coverage & analytics visuals |
+| Firebase | Auth |
+
+## Setup
+
+### 1. Backend
+```bash
+pip install pdfplumber easyocr python-docx symspellpy python-dateutil rapidfuzz rank_bm25 sentence-transformers torch fastapi uvicorn scikit-learn
+```
+
+> **Note:** First run downloads `Qwen/Qwen3-Embedding-4B` (~8GB) from Hugging Face. This happens once and is cached locally — subsequent runs load instantly and work fully offline.
+
+### 2. Frontend
+```bash
+cd frontend
+npm install
+```
+
+## Running the app
+
+Two terminals, run simultaneously:
 
 ```bash
-pnpm install
-pnpm --dir frontend dev
+# Terminal 1 — backend
+python -m uvicorn api:app --host 127.0.0.1 --port 8000 --reload
 ```
-
-## Build
 
 ```bash
-pnpm --dir frontend run build
+# Terminal 2 — frontend
+cd frontend
+npm run dev
 ```
 
-Copy `.env.example` to `.env.local` and provide Firebase values to enable live Google authentication. The application uses typed mock services until backend endpoints are connected.
+Then open **http://localhost:5173**.
 
-## Hackathon integration
+## API
 
-Hiring intelligence workflow: resume shortlisting → technical coding assessment → recruiter interview support.
+### `POST /rank`
+Accepts multipart form data: a JD (`jd_file` or `jd_text`) and multiple resume files (`resumes`).
 
-## Hackathon target
-
-InternLoom's core requirement is an explainable Smart Shortlisting Engine that evaluates a JD against 15–18 resumes using both semantic and keyword matching, returns a ranked shortlist, and explains the top three candidates. The official bonus also explicitly allows a recruiter chat layer for questions such as why one candidate ranks above another. See the supplied problem statement, especially the core requirements on page 1 and judging rubric on page 2.
-
-## Planned architecture
-
-- Resume/JD matching remains deterministic and explainable: keyword evidence + semantic similarity + weighted ranking.
-- Recruiter AI is a tool-using assistant, not a generic ChatGPT clone.
-- Coding assessment is integrated as the next stage after shortlist selection, using the existing CodeAssess platform as the assessment engine.
-- Recruiter assistant can answer candidate comparisons, skill queries, missing-skill queries, ranking explanations, and coding-assessment result queries.
-- Every answer should be grounded in structured Nexora data and expose the evidence used.
-
-## Suggested product flow
-
-```text
-JD + Resume Pool
-      ↓
-Parsing / Normalization
-      ↓
-Keyword + Semantic Matching
-      ↓
-Explainable Ranking
-      ↓
-Recruiter Dashboard
-      ↓
-Persistent Recruiter AI Drawer
-      ├── Why is #1 ranked highest?
-      ├── Compare #1 and #2
-      ├── Who has strongest React experience?
-      ├── Show candidates missing Docker
-      └── Who has backend experience?
-      ↓
-Select Candidate
-      ↓
-Generate Coding Assessment Invite
-      ↓
-CodeAssess Candidate Portal
-      ↓
-Run / Submit / AI Evaluate
-      ↓
-Assessment Results returned to Nexora
-      ↓
-HR Interview / Final decision
+Returns a ranked JSON array:
+```json
+[
+  {
+    "filename": "candidate_07.pdf",
+    "final_score": 0.86,
+    "keyword_score": 0.71,
+    "semantic_score": 0.79,
+    "matched_skills": ["React", "Node.js", "MongoDB"],
+    "missing_skills": ["Docker"]
+  }
+]
 ```
 
-## Integration boundary
+## Project Structure
 
-CodeAssess currently exposes a FastAPI backend and a Next.js frontend. Its README documents assessment, invite, candidate overview, submission, evaluation, and report endpoints. Nexora should call the backend through a small adapter layer rather than embedding the entire CodeAssess application into the Nexora frontend.
-
-### Environment variables
-
-```env
-CODING_ASSESSMENT_API_URL=
-CODING_ASSESSMENT_FRONTEND_URL=
-OPENROUTER_API_KEY=
+```
+nexora/
+├── extraction.py
+├── normalization.py
+├── skill_extraction.py
+├── keyword_matching.py
+├── semantic_matching.py
+├── api.py
+├── test_pipeline.py
+└── frontend/
+    ├── src/
+    │   ├── main.tsx
+    │   ├── types.ts
+    │   ├── services/api.ts
+    │   └── components/
+    │       ├── JobCandidatesView.tsx
+    │       ├── CandidateComparisonModal.tsx
+    │       ├── CandidateDetailView.tsx
+    │       ├── HiringSimulator.tsx
+    │       ├── RecruiterChatbot.tsx
+    │       ├── SkillCandidatesDrawer.tsx
+    │       └── SkillCoverageTable.tsx
+    └── package.json
 ```
 
-Do not commit secrets.
+## Known Limitation
 
-## Repository ownership
-
-This repository is organized as a clean integration shell so the team can merge independently developed UI and backend work without copying the CodeAssess repository wholesale.
+Extraction reads text content directly, so it currently cannot distinguish genuine resume content from deliberately hidden text (e.g. white-on-white or off-margin tiny-font keyword stuffing intended to game keyword-based screening). Noted as a known adversarial gap for future work — see submission report for details.
