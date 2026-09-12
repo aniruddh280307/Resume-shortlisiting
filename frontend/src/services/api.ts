@@ -158,16 +158,16 @@ export async function chatWithRecruiter(
   candidates: Candidate[] = defaultCandidates
 ): Promise<ChatMessage> {
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const candidateList = candidates.length > 0 ? candidates : defaultCandidates;
+  const candidateList = candidates && candidates.length > 0 ? candidates : defaultCandidates;
 
-  // Try Python AI Chatbot endpoint first
+  // 1. Try Python AI Chatbot endpoint first
   try {
     const res = await fetch('http://127.0.0.1:8001/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
-        candidates: candidateList.slice(0, 10),
+        candidates: candidateList,
         job: { title: 'Senior Full Stack Engineer' }
       })
     });
@@ -186,82 +186,208 @@ export async function chatWithRecruiter(
     // Graceful fallback to client engine
   }
 
-  await wait(450);
-  const lower = prompt.toLowerCase();
+  await wait(300);
+  const pLower = prompt.toLowerCase();
 
-  // 1. Angular matching query
-  if (lower.includes('angular')) {
-    const angularMatches = candidateList.filter((c) => c.matchedSkills.includes('Angular'));
+  // 2. SPECIFIC CANDIDATE INQUIRY
+  const matchedCandidate = candidateList.find((c) => {
+    const nameLower = c.name.toLowerCase();
+    const firstName = nameLower.split(' ')[0];
+    return pLower.includes(nameLower) || (firstName.length >= 3 && pLower.includes(firstName));
+  });
+
+  if (matchedCandidate) {
+    const c = matchedCandidate;
+    const isSuspicious = (c.verificationAlerts && c.verificationAlerts.length > 0) || c.verificationStatus === 'review_recommended';
+    const alerts = c.verificationAlerts || [];
+
+    // Specific fraud/flags query for this candidate
+    if (/fraud|fake|suspicious|flag|alert|anomal|integrity|hidden/i.test(pLower)) {
+      if (isSuspicious) {
+        const alertList = alerts.map((a: any) => `  • **${a.title || 'Integrity Alert'}** [${(a.severity || 'HIGH').toUpperCase()}]: ${a.message || a.description || 'Detected anomalous layer.'}` + (a.detectedValue || a.detectedText ? `\n    _Detected Snippet_: \`${(a.detectedValue || a.detectedText).slice(0, 80)}\`` : '')).join('\n');
+        return {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          timestamp: time,
+          content: `### ⚠️ Integrity Analysis for **${c.name}**\n\n` +
+            `**Status**: Review Recommended (${alerts.length} anomalies detected)\n\n` +
+            `**Detected Findings**:\n${alertList}\n\n` +
+            `💡 **Recruiter Note**: Nexora FraudGuard excluded all hidden keyword injections and fabricated claims from scoring. ${c.name}'s match score (**${c.finalScore}%**) reflects **only verified visible credentials**.`
+        };
+      } else {
+        return {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          timestamp: time,
+          content: `### ✓ Document Integrity for **${c.name}**\n\n` +
+            `**Status**: **Verified Clean** · No Anomalies Detected\n\n` +
+            `• **Typography**: Passed standard visible font sizes (≥ 8pt)\n` +
+            `• **Formatting**: Passed boundary and zero white-font contrast checks\n` +
+            `• **Timeline**: Verified chronological employment and degree history.`
+        };
+      }
+    }
+
+    const eduStr = c.education && c.education.length > 0
+      ? `${c.education[0].degree} at ${c.education[0].institution} (${c.education[0].year})`
+      : 'Education on file';
+
+    const workStr = c.workHistory && c.workHistory.length > 0
+      ? `${c.workHistory[0].role} at ${c.workHistory[0].company} (${c.workHistory[0].period})`
+      : 'Work history on file';
+
+    const projBullets = c.projects && c.projects.length > 0
+      ? c.projects.map((p) => `  • **${p.title}**: ${p.description} (Tech: ${p.technologies.join(', ')})`).join('\n')
+      : '  • Projects indexed from resume.';
+
+    const integritySummary = isSuspicious
+      ? `⚠️ **Flagged (${alerts.length} anomalies)** — Hidden text/keyword stuffing was caught and purged from score.`
+      : `✓ **Verified Document Integrity** — Passed all fraud checks.`;
+
     return {
       id: crypto.randomUUID(),
       role: 'assistant',
       timestamp: time,
-      content: `There are ${angularMatches.length} candidates with verified Angular experience in this pool:\n\n` +
-        angularMatches.slice(0, 5).map((c) => `• ${c.name} (${c.title}) — Match: ${c.finalScore}% (Semantic: ${c.semanticScore}%, Keywords: ${c.keywordScore}%)`).join('\n') +
-        `\n\nRahul Sharma (#1) and Arjun Kumar (#2) present the highest evidence strength with production Angular and TypeScript projects.`,
+      content: `### Profile Evaluation: **${c.name}** (Rank #${c.rank})\n\n` +
+        `• **Target Role Fit**: **${c.finalScore}% Final Match Score** (Semantic: ${c.semanticScore || 0}%, Keywords: ${c.keywordScore || 0}%)\n` +
+        `• **Current Role & Experience**: ${c.title} (${c.experienceYears || 0.5} yrs) · ${c.location}\n` +
+        `• **Education**: ${eduStr}\n` +
+        `• **Recent Experience**: ${workStr}\n` +
+        `• **Verified Core Skills**: ${c.matchedSkills.join(', ') || 'Demonstrated skills'}\n` +
+        `• **Missing Role Requirements**: ${c.missingSkills.join(', ') || 'None (Full coverage)'}\n\n` +
+        `**Demonstrated Projects**:\n${projBullets}\n\n` +
+        `**Document Verification**: ${integritySummary}`
     };
   }
 
-  // 2. Missing AWS query
-  if (lower.includes('missing aws') || lower.includes('lacks aws') || lower.includes('without aws')) {
-    const missingAWS = candidateList.filter((c) => !c.matchedSkills.includes('AWS'));
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      timestamp: time,
-      content: `${missingAWS.length} out of 18 candidates do not show sufficient evidence of AWS in their resumes. This is the largest skill shortage in this candidate pool.\n\n` +
-        `Candidates possessing strong AWS evidence include Maya Patel (#3), Daniel Kim (#6), and Leo Martin (#8). For top candidates like Rahul Sharma and Arjun Kumar, AWS is unverified or limited to resume listings without production project evidence.`,
-    };
+  // 3. FRAUD & INTEGRITY QUERIES ACROSS POOL
+  if (/fraud|fake|suspicious|flagged|alert|cheat|scam|adversarial/i.test(pLower)) {
+    const flagged = candidateList.filter((c) => (c.verificationAlerts && c.verificationAlerts.length > 0) || c.verificationStatus === 'review_recommended');
+    if (flagged.length > 0) {
+      const bullets = flagged.slice(0, 4).map((fc) => {
+        const a = fc.verificationAlerts?.[0] as any;
+        const textSnippet = a?.detectedValue || a?.detectedText ? ` (\`${(a.detectedValue || a.detectedText).slice(0, 50)}...\`)` : '';
+        return `• **${fc.name}** (Rank #${fc.rank}): **${fc.verificationAlerts?.length || 1} flags** — ${a?.title || 'Formatting anomaly'}${textSnippet}`;
+      }).join('\n');
+
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        timestamp: time,
+        content: `### 🔍 Nexora FraudGuard Pool Audit\n\n` +
+          `Identified **${flagged.length} candidate(s)** with potential document manipulation or hidden adversarial text:\n\n` +
+          `${bullets}\n\n` +
+          `🛡️ **System Protection**: All concealed text (1.0pt micro-fonts, white-fonts, off-margin ATS stuffing) was stripped out prior to scoring. Match scores accurately reflect genuine qualifications only.`
+      };
+    } else {
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        timestamp: time,
+        content: `### ✓ Nexora FraudGuard Pool Audit\n\n` +
+          `**All ${candidateList.length} candidates in the active pool are verified clean**.\n\n` +
+          `Zero hidden text layers, invisible white-fonting (RGB 255), microscopic typography, or timeline overlap conflicts were detected.`
+      };
+    }
   }
 
-  // 3. Compare Rahul and Arjun (or general comparison)
-  if (lower.includes('compare') || (lower.includes('rahul') && lower.includes('arjun'))) {
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      timestamp: time,
-      content: `Comparison between Rahul Sharma (Rank #1, 94.0%) and Arjun Kumar (Rank #2, 89.5%):\n\n` +
-        `• Match Scores: Rahul leads by +4.5% overall (Semantic: 92% vs 88%, Keyword: 96% vs 91%).\n` +
-        `• Skill Breadth: Both possess Angular, React, SQL, and TypeScript. Rahul demonstrates full-stack Python FastAPI microservices at CognitiveScale, whereas Arjun's primary strength is focused in Angular/TypeScript frontend with secondary Python.\n` +
-        `• Experience: Rahul has 3.5 years of production experience versus Arjun's 2.5 years.\n` +
-        `• Verification: Rahul has a timeline overlap flag between two 2025 internships recommended for verification. Arjun is fully verified with no timeline inconsistencies.`,
-    };
+  // 4. CANDIDATE COMPARISONS
+  if (/compare|versus| vs /i.test(pLower)) {
+    if (candidateList.length >= 2) {
+      let c1 = candidateList[0];
+      let c2 = candidateList[1];
+
+      const mentioned = candidateList.filter((c) => pLower.includes(c.name.toLowerCase().split(' ')[0]));
+      if (mentioned.length >= 2) {
+        c1 = mentioned[0];
+        c2 = mentioned[1];
+      } else if (mentioned.length === 1) {
+        c1 = mentioned[0];
+        c2 = candidateList.find((c) => c.id !== c1.id) || candidateList[1];
+      }
+
+      const score1 = c1.finalScore || 0;
+      const score2 = c2.finalScore || 0;
+      const ver1 = c1.verificationAlerts && c1.verificationAlerts.length > 0 ? '⚠️ Flagged for review' : '✓ Verified clean';
+      const ver2 = c2.verificationAlerts && c2.verificationAlerts.length > 0 ? '⚠️ Flagged for review' : '✓ Verified clean';
+      const rec = score1 >= score2 ? `**${c1.name}** holds a +${(score1 - score2).toFixed(1)}% higher match score` : `**${c2.name}** holds a +${(score2 - score1).toFixed(1)}% higher match score`;
+
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        timestamp: time,
+        content: `### ⚖️ Side-by-Side Comparison: **${c1.name}** vs **${c2.name}**\n\n` +
+          `| Metric | **${c1.name}** (Rank #${c1.rank}) | **${c2.name}** (Rank #${c2.rank}) |\n` +
+          `| :--- | :--- | :--- |\n` +
+          `| **Overall Match** | **${score1}%** (Sem: ${c1.semanticScore || 0}%, KW: ${c1.keywordScore || 0}%) | **${score2}%** (Sem: ${c2.semanticScore || 0}%, KW: ${c2.keywordScore || 0}%) |\n` +
+          `| **Title & Exp** | ${c1.title} (${c1.experienceYears || 0.5} yrs) | ${c2.title} (${c2.experienceYears || 0.5} yrs) |\n` +
+          `| **Verified Skills** | ${c1.matchedSkills.join(', ') || 'None'} | ${c2.matchedSkills.join(', ') || 'None'} |\n` +
+          `| **Integrity** | ${ver1} | ${ver2} |\n\n` +
+          `💡 **Recommendation**: ${rec}. Review evidenced projects and verify any flagged items during technical interview.`
+      };
+    }
   }
 
-  // 4. Why is Rahul ranked #1
-  if (lower.includes('why is rahul') || lower.includes('ranked #1') || lower.includes('rank 1')) {
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      timestamp: time,
-      content: `Rahul Sharma is ranked #1 (94.0% Match Score) because he achieves the highest dual evaluation across this role:\n\n` +
-        `1. Semantic Match (92%): His work at CognitiveScale on Angular micro-frontends and Python APIs closely matches the JD architecture.\n` +
-        `2. Keyword Match (96%): 5 of 5 required skills (Python, Angular, React, SQL, TypeScript) are confirmed with strong multi-source evidence across work history and projects.\n` +
-        `3. Project Depth: Two documented production projects demonstrate real-world scalability (RxJS state management, 4M+ daily SQL event processing).\n\n` +
-        `Note: A timeline overlap flag exists on his profile for screening verification, but does not diminish his technical skill match.`,
-    };
+  // 5. SKILL SPECIFIC SEARCH
+  const techKeywords = ['python', 'react', 'typescript', 'javascript', 'angular', 'node', 'express', 'sql', 'aws', 'docker', 'kubernetes', 'mongodb', 'figma'];
+  const searchedSkill = techKeywords.find((tk) => pLower.includes(tk));
+
+  if (searchedSkill && /who|which|has|knows|experience|candidates|find/i.test(pLower)) {
+    const matches = candidateList.filter((c) => c.matchedSkills.some((s) => s.toLowerCase().includes(searchedSkill)) || c.title.toLowerCase().includes(searchedSkill));
+    const skillDisplay = searchedSkill.length <= 4 ? searchedSkill.toUpperCase() : searchedSkill.charAt(0).toUpperCase() + searchedSkill.slice(1);
+
+    if (matches.length > 0) {
+      const candLines = matches.slice(0, 6).map((c) => `• **${c.name}** (Rank #${c.rank}, **${c.finalScore}% Match**) — ${c.title}, ${c.experienceYears || 0.5} yrs exp.`).join('\n');
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        timestamp: time,
+        content: `### 🎯 Candidates with Verified **${skillDisplay}** Experience\n\n` +
+          `Found **${matches.length} candidate(s)** with demonstrated ${skillDisplay} proficiency:\n\n` +
+          `${candLines}\n\n` +
+          `Each candidate's profile links to verified code evidence from their work history and projects.`
+      };
+    } else {
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        timestamp: time,
+        content: `### ⚠️ Skill Coverage: **${skillDisplay}**\n\n` +
+          `No candidates in the active pool currently demonstrate verified production experience in **${skillDisplay}**.\n\n` +
+          `Consider evaluating candidates with adjacent skillsets or adjusting hiring weights in the dashboard.`
+      };
+    }
   }
 
-  // 5. Biggest skill gap
-  if (lower.includes('gap') || lower.includes('shortage') || lower.includes('biggest')) {
-    return {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      timestamp: time,
-      content: `The largest candidate gaps in this pool are:\n\n` +
-        `1. AWS: 12 candidates missing (only 6 match, 33% coverage)\n` +
-        `2. Docker: 10 candidates missing (8 match, 44% coverage)\n` +
-        `3. Angular: 10 candidates missing (8 match, 44% coverage)\n\n` +
-        `In contrast, SQL (15 matches, 83%) and Python (12 matches, 67%) have the healthiest talent coverage.`,
-    };
+  // 6. TOP CANDIDATE RECOMMENDATION
+  if (/best|top|recommend|hire|first|rank 1|rank #1|who should/i.test(pLower)) {
+    if (candidateList.length > 0) {
+      const topCandidate = [...candidateList].sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))[0];
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        timestamp: time,
+        content: `### 🏆 Top Candidate Recommendation: **${topCandidate.name}**\n\n` +
+          `• **Rank**: #1 with a **${topCandidate.finalScore}% Match Score**\n` +
+          `• **Role**: ${topCandidate.title} (${topCandidate.experienceYears || 0.5} years of verified experience)\n` +
+          `• **Key Strengths**: Verified skills across **${topCandidate.matchedSkills.join(', ')}**\n` +
+          `• **Next Step**: Schedule an initial technical screen to evaluate architectural depth.`
+      };
+    }
   }
 
-  // Default helpful response
+  // 7. DEFAULT CONTEXTUAL INTELLIGENCE
+  const topScore = candidateList.length > 0 ? Math.max(...candidateList.map((c) => c.finalScore || 0)) : 0;
   return {
     id: crypto.randomUUID(),
     role: 'assistant',
     timestamp: time,
-    content: `Based on the active analysis of 18 candidates for Senior Full Stack Engineer:\n\n` +
-      `The top-tier matches are Rahul Sharma (94.0%), Arjun Kumar (89.5%), and Maya Patel (87.2%). I can compare candidates, detail specific skill coverage (e.g. Angular, AWS, Python), or explain how score weights influence rankings.`,
+    content: `### Recruiter Assistant Intelligence\n\n` +
+      `Active candidate pool: **${candidateList.length} candidates** (Top Match Score: **${topScore}%**).\n\n` +
+      `You can ask me to:\n` +
+      `• **Evaluate a candidate**: _\"Tell me about Arjun Sharma\"_ or _\"Is Arjun flagged?\"_\n` +
+      `• **Compare applicants**: _\"Compare the top 2 candidates\"_\n` +
+      `• **Skill lookups**: _\"Who has React experience?\"_ or _\"Which candidates know SQL?\"_\n` +
+      `• **Audit integrity**: _\"Show all fraud detection alerts\"_`
   };
 }
