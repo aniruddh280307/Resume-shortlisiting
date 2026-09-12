@@ -378,14 +378,15 @@ export const store = {
     const newRank = existingJobCandidates.length + 1;
 
     // Final scores & skills from AI
-    const finalScore = aiParsed?.finalScore ?? 88.5;
-    const semanticScore = aiParsed?.semanticScore ?? 90.0;
-    const keywordScore = aiParsed?.keywordScore ?? 86.0;
-    const matchedSkills = aiParsed?.matchedSkills ?? parentJob?.skillsRequired?.slice(0, 3) ?? ['React', 'TypeScript', 'SQL'];
-    const missingSkills = aiParsed?.missingSkills ?? parentJob?.skillsRequired?.slice(3) ?? ['Docker'];
+    const finalScore = aiParsed?.finalScore ?? 45.0;
+    const semanticScore = aiParsed?.semanticScore ?? 48.0;
+    const keywordScore = aiParsed?.keywordScore ?? 42.0;
+    const matchedSkills = aiParsed?.matchedSkills ?? [];
+    const missingSkills = aiParsed?.missingSkills ?? parentJob?.skillsRequired ?? ['React', 'TypeScript', 'Python', 'Docker'];
     const verificationAlerts = aiParsed?.verificationAlerts ?? [];
     const verificationStatus: 'verified' | 'review_recommended' | 'unverified' = 
-      verificationAlerts.length > 0 ? 'review_recommended' : 'verified';
+      aiParsed?.verificationStatus || (verificationAlerts.length > 0 ? 'review_recommended' : 'verified');
+    const skillEvidence = aiParsed?.skillEvidence || {};
 
     // Build complete Candidate Dossier
     const newCandidate: Candidate = {
@@ -405,42 +406,32 @@ export const store = {
 
       requiredSkillsMatched: matchedSkills.length,
       requiredSkillsTotal: parentJob?.skillsRequired?.length || 5,
-      preferredSkillsMatched: Math.max(0, (aiParsed?.skills?.length || 5) - matchedSkills.length),
+      preferredSkillsMatched: aiParsed?.preferredSkillsMatched ?? Math.max(0, (aiParsed?.skills?.length || 0) - matchedSkills.length),
       preferredSkillsTotal: 3,
       matchedSkills,
       missingSkills,
-      skillEvidence: {},
-      explanation: aiParsed?.explanation || `Verified experience across ${matchedSkills.join(', ')}. Scanned with AI engine.`,
-      experience: `${aiParsed?.experienceYears || 3.5} years of engineering experience`,
-      experienceYears: aiParsed?.experienceYears || 3.5,
+      skillEvidence,
+      explanation: aiParsed?.explanation || `Verified experience across ${matchedSkills.join(', ') || 'demonstrated skills'}. Scanned with AI engine.`,
+      experience: `${aiParsed?.experienceYears || 0.5} years of demonstrated experience`,
+      experienceYears: aiParsed?.experienceYears || 0.5,
       education: aiParsed?.education || [
-        { degree: 'B.S. in Computer Science', institution: 'State University', year: '2020' }
+        { degree: 'B.Tech, Computer Science Engineering', institution: 'Example Institute of Technology', year: '2022–2026', details: 'CGPA: 8.1/10' }
       ],
       projects: aiParsed?.projects || [
         {
-          title: 'Cloud Intelligence Pipeline',
-          role: 'Lead Architect',
-          technologies: matchedSkills.slice(0, 3),
-          description: 'Distributed real-time analysis pipeline with automated schema validation.'
+          title: 'Campus Events Portal',
+          technologies: ['HTML', 'CSS', 'JavaScript'],
+          description: 'Created a simple event listing and registration interface.'
         }
       ],
       workHistory: aiParsed?.workHistory || [
         {
-          company: 'Tech Solutions Inc.',
           role: candidateTitle,
-          period: '2022 – Present',
+          company: 'PixelCraft Studio',
+          period: 'Jun 2025 – Aug 2025',
           highlights: [
-            `Architected high-throughput services using ${matchedSkills.slice(0, 2).join(' and ')}.`,
-            'Optimized data pipeline latencies and continuous delivery workflows.'
-          ]
-        },
-        {
-          company: 'DataFlow Systems',
-          role: `Associate ${candidateTitle}`,
-          period: '2020 – 2022',
-          highlights: [
-            'Built responsive interfaces and documented backend REST APIs.',
-            'Collaborated with design and QA to ship customer-facing modules.'
+            'Built responsive interfaces using HTML, CSS and JavaScript.',
+            'Worked with designers to improve usability and accessibility.'
           ]
         }
       ],

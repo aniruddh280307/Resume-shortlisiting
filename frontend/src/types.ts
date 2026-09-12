@@ -115,6 +115,7 @@ export interface CandidateEducation {
   institution: string;
   year: string;
   cgpa?: string;
+  details?: string;
 }
 
 export interface CandidateLinks {

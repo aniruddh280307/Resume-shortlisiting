@@ -2888,18 +2888,96 @@ p {
 }
 
 /* ==========================================================================
+   RESUME ATTACHMENT BOX IN PROFILE
+   ========================================================================== */
+.resume-attachment-box {
+  margin-top: 16px;
+  padding: 14px;
+  background-color: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 0px;
+}
+
+.resume-attachment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.resume-attachment-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.resume-filetype-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 2px 6px;
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0px;
+}
+
+.resume-filename {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f8fafc;
+  margin-bottom: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-doc-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 0px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.resume-doc-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* ==========================================================================
    RESUME VERIFICATION / FLAW DETECTION CARD
    ========================================================================== */
 .verification-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: 0px;
   padding: 20px;
   box-shadow: var(--shadow-sm);
 }
 
+.verification-card.is-suspicious {
+  border-color: #f59e0b;
+  border-left: 4px solid #d97706;
+}
+
+.verification-card.is-clean {
+  border-color: #10b981;
+  border-left: 4px solid #059669;
+}
+
 .verification-head {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .verif-title-wrap {
@@ -2909,15 +2987,16 @@ p {
 }
 
 .verif-title-wrap.warning svg {
-  color: var(--warning);
+  color: #d97706;
 }
 
 .verif-title-wrap.verified svg {
-  color: var(--success);
+  color: #059669;
 }
 
 .verif-title-wrap h4 {
   font-size: 14px;
+  font-weight: 700;
   margin-bottom: 2px;
 }
 
@@ -2926,19 +3005,19 @@ p {
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: 0px;
 }
 
 .verif-status-badge.review {
-  background-color: var(--warning-bg);
-  color: var(--warning-text);
-  border: 1px solid var(--warning-border);
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .verif-status-badge.ok {
-  background-color: var(--success-bg);
-  color: var(--success-text);
-  border: 1px solid var(--success-border);
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
 }
 
 .alert-content-body {
@@ -2949,22 +3028,55 @@ p {
 
 .alert-item {
   background-color: #fffefb;
-  border: 1px solid var(--warning-border);
+  border: 1px solid #fde68a;
   padding: 12px;
-  border-radius: var(--radius-sm);
+  border-radius: 0px;
+}
+
+.alert-severity-chip {
+  font-size: 9px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 5px;
+  border-radius: 0px;
+  text-transform: uppercase;
+}
+
+.alert-severity-chip.critical {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.alert-severity-chip.high {
+  background-color: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.alert-severity-chip.warning, .alert-severity-chip.medium {
+  background-color: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.alert-severity-chip.low, .alert-severity-chip.info {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
 }
 
 .alert-title {
   display: block;
   font-size: 12px;
-  color: var(--warning-text);
-  margin-bottom: 4px;
+  color: #92400e;
 }
 
 .alert-message {
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.5;
+  margin-top: 4px;
 }
 
 .timeline-detail-box {
@@ -2972,19 +3084,21 @@ p {
   background-color: #ffffff;
   border: 1px solid var(--border-color);
   padding: 6px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: 0px;
 }
 
 .timeline-detail-box small {
   display: block;
   font-size: 10px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
 .timeline-detail-box code {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-primary);
+  color: #b91c1c;
+  word-break: break-all;
 }
 
 .score-independence-notice {
@@ -2992,7 +3106,7 @@ p {
   gap: 8px;
   background-color: var(--bg-subtle);
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: 0px;
   font-size: 11px;
   line-height: 1.5;
 }
@@ -3000,7 +3114,7 @@ p {
 .notice-icon {
   width: 16px;
   height: 16px;
-  border-radius: 50%;
+  border-radius: 0px;
   background-color: var(--primary);
   color: #ffffff;
   display: grid;
@@ -3015,9 +3129,35 @@ p {
   font-size: 11px;
 }
 
-.verified-body p {
+.verified-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verified-main-desc {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.verified-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 12px;
+  border-radius: 0px;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #166534;
 }
 
 /* ==========================================================================
